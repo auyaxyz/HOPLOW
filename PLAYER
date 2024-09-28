@@ -1,0 +1,72 @@
+local Http = game:GetService("HttpService")
+local TPS = game:GetService("TeleportService")
+local Api = "https://games.roblox.com/v1/games/"
+
+local PlaceID = game.PlaceId
+local AllIDs = {}
+local foundAnything = ""
+local actualHour = os.date("!*t").hour
+
+-- Fungsi untuk memuat file berisi ID server yang sudah dikunjungi
+local File = pcall(function()
+    AllIDs = Http:JSONDecode(readfile("NotSameServers.json"))
+end)
+if not File then
+    table.insert(AllIDs, actualHour)
+    writefile("NotSameServers.json", Http:JSONEncode(AllIDs))
+end
+
+-- Fungsi untuk mencari server dengan 1 hingga 3 pemain
+function TPReturner()
+    local Site
+    if foundAnything == "" then
+        Site = Http:JSONDecode(game:HttpGet(Api .. PlaceID .. "/servers/Public?sortOrder=Asc&limit=100"))
+    else
+        Site = Http:JSONDecode(game:HttpGet(Api .. PlaceID .. "/servers/Public?sortOrder=Asc&limit=100&cursor=" .. foundAnything))
+    end
+
+    if Site.nextPageCursor and Site.nextPageCursor ~= "null" then
+        foundAnything = Site.nextPageCursor
+    end
+
+    for i, v in pairs(Site.data) do
+        local Possible = true
+        local ID = tostring(v.id)
+
+        -- Hanya memilih server dengan 1-3 pemain
+        if tonumber(v.playing) >= 1 and tonumber(v.playing) <= 3 then
+            for _, Existing in pairs(AllIDs) do
+                if ID == tostring(Existing) then
+                    Possible = false
+                    break
+                end
+            end
+            if Possible then
+                -- Simpan ID server yang dikunjungi
+                table.insert(AllIDs, ID)
+                pcall(function()
+                    writefile("NotSameServers.json", Http:JSONEncode(AllIDs))
+                end)
+
+                -- Teleport ke server yang ditemukan
+                TPS:TeleportToPlaceInstance(PlaceID, ID, game.Players.LocalPlayer)
+                wait(4)
+            end
+        end
+    end
+end
+
+-- Fungsi untuk melakukan teleport berulang hingga menemukan server dengan 1-3 pemain
+function Teleport()
+    while wait() do
+        pcall(function()
+            TPReturner()
+            if foundAnything ~= "" then
+                TPReturner()
+            end
+        end)
+    end
+end
+
+-- Mulai proses teleportasi
+Teleport()
