@@ -1,5 +1,6 @@
 local Http = game:GetService("HttpService")
 local TPS = game:GetService("TeleportService")
+local Players = game:GetService("Players")
 local Api = "https://games.roblox.com/v1/games/"
 
 local PlaceID = game.PlaceId
@@ -49,8 +50,17 @@ function TPReturner()
                 end)
 
                 -- Teleport ke server yang ditemukan
-                TPS:TeleportToPlaceInstance(PlaceID, ID, game.Players.LocalPlayer)
+                TPS:TeleportToPlaceInstance(PlaceID, ID, Players.LocalPlayer)
                 wait(4)
+
+                -- Validasi jumlah pemain setelah teleportasi
+                if #Players:GetPlayers() > 3 then
+                    print("Server has more than 3 players, retrying...")
+                    task.wait(2)
+                    TPReturner() -- Pindah server lagi jika lebih dari 3 pemain
+                else
+                    break -- Berhenti jika sudah menemukan server yang sesuai
+                end
             end
         end
     end
